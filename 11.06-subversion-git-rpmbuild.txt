@@ -1,0 +1,137 @@
+
+
+SUBVERSION基本操作
+服务端：
+1.yum装包subversion
+2.创建版本库路径 mkdir /var/svn
+3.新建一个版本库 svnadmin create /var/svn/project
+4.导入数据 svn import .* file://var/svn/project -m 'test' 搭建服务器是指定版本库路径，
+5.修改配置文件创建用户密码以及设置权限：vim /var/svn/project/conf/svnserve.conf（  passwd 、zuthz  ）
+6.启动服务 svnserve -d -r /var/svn/project ( -d 放入后台，-r 制定版本库 )
+
+客户端： svn --username harry --password 123456 co svn://192.168.2.100/ code （ 用户、密码 co表示下载 指定svn服务器ip code 文件名，会自动创建 ）
+1.修改文件后上传：svn ci -m "s"  ( ci:表示上传  -m ：备注信息 )
+2.svn update 更新 （ 相同文件被修改后先更新）
+3.若出现相同文件被修改相同行，会产生冲突：
+Conflict(冲突) discovered in 'tuned.service'.
+Select: (p) postpone, (df) diff-full, (e) edit,
+        (mc) mine-conflict, (tc) theirs-conflict,
+        (s) show all options:p   //选择   先标记p，随后解决
+  依情况选择保留那个。
+4.svn merge -r7:2    tuned.service    
+      //将文件从版本7还原到版本2
+5.svn revert tmp.mount   （ 修改后没有提交  ）         
+        //还原tmp.mount文件
+ * 使用dump指令备份版本库数据
+1.svnadmin dump /var/svn/project > project.bak //备份
+2.svnadmin load /var/svn/project1 < project.bak //还原。
+
+
+Github：
+[root@pc001 ~]# yum -y install git
+
+[root@pc001 ~]# git clone https://github.com/账户名称/仓库名称
+
+#clone指令用于将服务器仓库中的资料打包下载到本地
+
+[root@pc001 ~]# cd 仓库名称
+
+[root@pc001 ~]# 任意修改文件，或新建文件
+
+[root@pc001 ~]# git add .
+
+#add添加新文件
+
+[root@pc001 ~]# git commit -m "test"
+
+[root@pc001 ~]# git push
+
+#commit和push实现提交代码的功能
+
+[root@pc001 ~]# git pull
+
+#pull更新，类似于svn update
+
+
+
+
+
+制作nginx的RPM包
+1.yum安装rpm-build软件
+2.rpmbuild -ba /root/rpmbuild/nginx.spec    //会报错，没有文件或目录
+3. ls /root/rpmbuild                    //自动生成的目录结构
+BUILD  BUILDROOT  RPMS  SOURCES  SPECS  SRPMS
+4.将源码包复制到SOURCES里面
+5.创建并修改配置文件 /root/rpmbuild/SPECS/nginx.spec (没有此文件，只要输入以spec结尾的文件会自动显示)
+Name:nginx        
+Version:1.12.2
+Release:    10        //RPM版本
+Summary: Nginx is a web server software.    //描述
+License:GPL    //协议
+URL:    www.test.com    //网址
+Source0:nginx-1.12.2.tar.gz   //源码文件
+#BuildRequires:    //编译时依赖包
+#Requires:         //安装时依赖包
+%description
+nginx [engine x] is an HTTP and reverse proxy server.
+%post    //非必需操作：安装后脚本(创建账户)
+useradd nginx                       
+%setup –q                            //自动解压源码包，并cd进入目录
+%build                               //编译时需要执行的命令
+./configure （可加参数）
+make %{?_smp_mflags}
+%install
+make install DESTDIR=%{buildroot}
+cp /root/rpmbuild/SPECS/nginx.sh %{buildroot}/usr/local/nginx/    
+##注意，cp非必须操作，注意，这里是将一个脚本拷贝到安装目录，必须提前准备该文件
+%files
+%doc
+/usr/local/nginx/*            //对哪些文件与目录打包
+%changelog
+6.rpmbuild -ba /root/rpmbuild/SPECS/nginx.spec ( 执行之后会产生一个rpm包，编译好的。)
+7。装包
+
+以在SuSE Linux平台上提取MySQL-5.1.31-0.glibc23.src.rpm 源代码包为例
+
+方法1：rpm -i MySQL-5.1.31-0.glibc23.src.rpm
+使用该命令后，rpm会在/usr/src/packages/SOURCES/目录下生成mysql-5.1.31.tar.gz这个源代码包，这个文件也是我们希望得到 的最终文件。
+
+同时rpm也会在/usr/src/packages/SPECS/目录下生成一个名为mysql-5.1.31.spec的文本文件，可以使用rpmbuild -bp mysql- 5.1.31.spec命令来构建mysqld。
+
+方法2：rpm2cpio MySQL-5.1.31-0.glibc23.src.rpm | cpio -idv
+该命令可以在不安装的情况下提取出rpm包中的文件，也可以使用其他类似命令：
+
+rpm2cpio MySQL-5.1.31-0.glibc23.src.rpm | cpio -vi 
+rpm2cpio MySQL-5.1.31-0.glibc23.src.rpm | cpio -idmv 
+rpm2cpio MySQL-5.1.31-0.glibc23.src.rpm | cpio --extract --make-directories 
+
+参数i和extract相同，表示提取文件。
+v表示指示执行进程。
+d和make-directory相同，表示根据包中文件原来的路径建立目录。
+m表示保持文件的更新时间。 
+---------------------
+有些软件包是以.src.rpm结尾的，这类软件包是包含了源代码的rpm包，在安装时需要进行编译。这类软件包有两种安装方法：
+
+方法一：
+1.　执行rpm -i your-package.src.rpm
+2.　cd /usr/src/redhat/SPECS
+3.　rpmbuild -bp your-package.specs 一个和你的软件包同名的specs文件
+4.　cd /usr/src/redhat/BUILD/your-package/ 一个和你的软件包同名的目录
+5.　./configure 这一步和编译普通的源码软件一样，可以加上参数
+6.　make
+7.　make install
+
+方法二:
+1.　执行rpm -i you-package.src.rpm
+2.　cd /usr/src/redhat/SPECS (前两步和方法一相同)
+3.　rpmbuild -bb your-package.specs 一个和你的软件包同名的specs文件
+
+这时，在/usr/src/redhat/RPM/i386/ （根据具体包的不同，也可能是i686,noarch等等) 在这个目录下，有一个新的rpm包，这个是编译好的二进制文件。执行：
+
+rpm -i new-package.rpm即可安装完成。
+
+rpm安装方式：rpm -ivh *.rmp
+
+
+
+
